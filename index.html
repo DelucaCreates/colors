@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Multi Color Swap Camera + Presets</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; background: #000; color: #fff; font-family: system-ui, sans-serif;
+    height: 100vh; overflow: hidden; display: flex; align-items: center; justify-content: center;
+  }
+  /* keeps the circle centered */
+  #container { position: relative; width: 100%; height: 100%; display: grid; place-items: center; }
+  canvas {
+    position: relative; z-index: 1;
+    width: 300px; height: 300px;
+    border-radius: 50%; object-fit: cover; background: #000; transition: width .2s, height .2s;
+  }
+
+  /* fixed control box on the left, always clickable */
+  #controls {
+    position: fixed; top: 50%; left: 10px; transform: translateY(-50%);
+    z-index: 9999; pointer-events: auto;
+    background: rgba(20,20,20,.9); border: 1px solid #333; border-radius: 10px;
+    padding: 10px; width: 220px; max-height: 90vh; overflow-y: auto; font-size: 14px;
+    box-shadow: 0 6px 24px rgba(0,0,0,.5);
+  }
+  #controls h3 { margin: 0 0 8px; text-align: center; font-size: 15px; }
+  #controls .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  #controls label { display: block; margin: 6px 0 2px; font-size: 12px; }
+  #controls input[type="color"], #controls input[type="range"] { width: 100%; }
+  .swapBlock { border-top: 1px solid #444; padding-top: 8px; margin-top: 8px; }
+  button {
+    width: 100%; padding: 8px 10px; border: 0; border-radius: 8px; cursor: pointer;
+    background: #2d6cdf; color: #fff; font-weight: 600; margin-bottom: 8px;
+  }
+
+  /* Preset chips */
+  .presets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 6px; }
+  .preset {
+    user-select: none; text-align: center; padding: 8px 6px; border-radius: 8px; cursor: pointer;
+    background: #262626; border: 1px solid #3a3a3a; font-size: 12px;
+  }
+  .preset.active { outline: 2px solid #2d6cdf; }
+</style>
+</head>
+<body>
+  <div id="controls">
+    <h3>Filters</h3>
+    <button id="startBtn">Start Camera</button>
+
+    <label>Circle Size</label>
+    <input type="range" id="sizeSlider" min="120" max="560" value="300">
+
+    <!-- Presets row -->
+    <div class="swapBlock">
+      <label style="margin-bottom:4px;">Presets</label>
+      <div class="presets">
+        <div class="preset active" data-preset="none">None</div>
+        <div class="preset" data-preset="bw">B&amp;W</div>
+        <div class="preset" data-preset="heat">Heat</div>
+      </div>
+    </div>
+
+    <!-- 4 color-swap slots with ON/OFF toggles -->
+    <div class="swapBlock">
+      <div class="row"><strong>Swap 1</strong><label class="row" style="gap:6px;">
+        <input type="checkbox" class="swapEnabled" checked> On
+      </label></div>
+      <label>Target</label><input type="color" class="targetColor" value="#0000ff">
+      <label>Replace</label><input type="color" class="newColor" value="#ff00ff">
+    </div>
+
+    <div class="swapBlock">
+      <div class="row"><strong>Swap 2</strong><label class="row" style="gap:6px;">
+        <input type="checkbox" class="swapEnabled" checked> On
+      </label></div>
+      <label>Target</label><input type="color" class="targetColor" value="#00ff00">
+      <label>Replace</label><input type="color" class="newColor" value="#ffff00">
+    </div>
+
+    <div class="swapBlock">
+      <div class="row"><strong>Swap 3</strong><label class="row" style="gap:6px;">
+        <input type="checkbox" class="swapEnabled" checked> On
+      </label></div>
+      <label>Target</label><input type="color" class="targetColor" value="#ff0000">
+      <label>Replace</label><input type="color" class="newColor" value="#00ffff">
+    </div>
+
+    <div class="swapBlock">
+      <div class="row"><strong>Swap 4</strong><label class="row" style="gap:6px;">
+        <input type="checkbox" class="swapEnabled"> On
+      </label></div>
+      <label>Target</label><input type="color" class="targetColor" value="#ffffff">
+      <label>Replace</label><input type="color" class="newColor" value="#000000">
+    </div>
+  </div>
+
+  <div id="container">
+    <canvas id="output" width="300" height="300"></canvas>
+  </div>
+
+<script>
+  const canvas = document.getElementById('output');
+  const ctx = canvas.getContext('2d');
+
+  const startBtn   = document.getElementById('startBtn');
+  const sizeSlider = document.getElementById('sizeSlider');
+
+  const THRESH = 60; // 0-255 per channel tolerance
+  let mode = 'none'; // 'none' | 'bw' | 'heat'
+  let swaps = [];
+  let videoEl = null;
+
+  // ---------- UI wiring ----------
+  function hexToRgb(hex) {
+    hex = hex.replace('#', '');
+    const x = parseInt(hex, 16);
+    return { r: (x >> 16) & 255, g: (x >> 8) & 255, b: x & 255 };
+  }
+
+  function updateSwaps() {
+    swaps = [];
+    const blocks = document.querySelectorAll('.swapBlock');
+    blocks.forEach(block => {
+      const enabled = block.querySelector?.('.swapEnabled')?.checked;
+      const tEl = block.querySelector?.('.targetColor');
+      const nEl = block.querySelector?.('.newColor');
+      if (!tEl || !nEl) return; // skip preset block
+      const t = tEl.value, n = nEl.value;
+      if (enabled && t !== n) swaps.push({ target: hexToRgb(t), repl: hexToRgb(n) });
+    });
+  }
+
+  document.addEventListener('input', (e) => {
+    if (e.target.matches('.targetColor, .newColor, .swapEnabled')) updateSwaps();
+    if (e.target === sizeSlider) {
+      const size = sizeSlider.value + 'px';
+      canvas.style.width = size;
+      canvas.style.height = size;
+    }
+  });
+
+  // Preset selection
+  document.querySelectorAll('.preset').forEach(p => {
+    p.addEventListener('click', () => {
+      document.querySelectorAll('.preset').forEach(x => x.classList.remove('active'));
+      p.classList.add('active');
+      mode = p.dataset.preset; // none | bw | heat
+    });
+  });
+
+  // ---------- camera + render ----------
+  async function startCamera() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } },
+        audio: false
+      });
+      videoEl = document.createElement('video');
+      videoEl.setAttribute('playsinline', 'true');
+      videoEl.muted = true;  // iOS quirk
+      videoEl.srcObject = stream;
+      await videoEl.play();
+
+      updateSwaps();
+      requestAnimationFrame(loop);
+      startBtn.textContent = 'Camera Running';
+      startBtn.disabled = true;
+    } catch (err) {
+      console.error('Camera error:', err);
+      alert('Camera access denied or unavailable.');
+    }
+  }
+
+  function applyBW(d) {
+    for (let i = 0; i < d.length; i += 4) {
+      const r = d[i], g = d[i+1], b = d[i+2];
+      const y = (r * 0.299 + g * 0.587 + b * 0.114) | 0;
+      d[i] = d[i+1] = d[i+2] = y;
+    }
+  }
+
+  function applyHeat(d) {
+    // quick “thermal” map using luminance -> gradient (blue->purple->red->orange->yellow->white)
+    for (let i = 0; i < d.length; i += 4) {
+      const r = d[i], g = d[i+1], b = d[i+2];
+      const y = (r * 0.299 + g * 0.587 + b * 0.114) | 0;
+      const t = y / 255; // 0..1
+
+      // piecewise gradient
+      let R=0,G=0,B=0;
+      if (t < 0.25) {        // blue -> purple
+        R = 128 * (t/0.25);
+        G = 0;
+        B = 255;
+      } else if (t < 0.5) {  // purple -> red
+        R = 128 + 127 * ((t-0.25)/0.25);
+        G = 0;
+        B = 255 - 255 * ((t-0.25)/0.25);
+      } else if (t < 0.75) { // red -> orange/yellow
+        R = 255;
+        G = 255 * ((t-0.5)/0.25);
+        B = 0;
+      } else {               // yellow -> white
+        R = 255;
+        G = 255;
+        B = 255 * ((t-0.75)/0.25);
+      }
+      d[i] = R|0; d[i+1] = G|0; d[i+2] = B|0;
+    }
+  }
+
+  function applySwaps(d) {
+    for (let i = 0; i < d.length; i += 4) {
+      const r = d[i], g = d[i+1], b = d[i+2];
+      for (let s = 0; s < swaps.length; s++) {
+        const t = swaps[s].target, rep = swaps[s].repl;
+        if (Math.abs(r - t.r) < THRESH && Math.abs(g - t.g) < THRESH && Math.abs(b - t.b) < THRESH) {
+          d[i] = rep.r; d[i+1] = rep.g; d[i+2] = rep.b;
+          break;
+        }
+      }
+    }
+  }
+
+  function loop() {
+    if (videoEl && !videoEl.paused) {
+      ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+      const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const d = img.data;
+
+      // Apply preset first (so color swaps happen on the result)
+      if (mode === 'bw') applyBW(d);
+      else if (mode === 'heat') applyHeat(d);
+
+      // Then apply color swaps (if any enabled)
+      if (swaps.length) applySwaps(d);
+
+      ctx.putImageData(img, 0, 0);
+    }
+    requestAnimationFrame(loop);
+  }
+
+  // click Start (so iOS allows camera)
+  startBtn.addEventListener('click', startCamera);
+
+  // init default UI state
+  (function init() {
+    const size = sizeSlider.value + 'px';
+    canvas.style.width = size;
+    canvas.style.height = size;
+    updateSwaps();
+  })();
+</script>
+</body>
+</html>
