@@ -2,172 +2,192 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Multi Color Swap Camera + Presets</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Color Swap Camera (Clickable UI)</title>
 <style>
   :root { color-scheme: dark; }
   body {
-    margin: 0; background: #000; color: #fff; font-family: system-ui, sans-serif;
-    height: 100vh; overflow: hidden; display: flex; align-items: center; justify-content: center;
+    margin: 0; background: #000; color: #fff; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    height: 100vh; overflow: hidden; display: grid; place-items: center;
   }
-  /* keeps the circle centered */
-  #container { position: relative; width: 100%; height: 100%; display: grid; place-items: center; }
+  #stage { position: relative; width: 100vw; height: 100vh; display: grid; place-items: center; }
+
+  /* Camera circle */
   canvas {
     position: relative; z-index: 1;
-    width: 300px; height: 300px;
-    border-radius: 50%; object-fit: cover; background: #000; transition: width .2s, height .2s;
+    width: 300px; height: 300px; border-radius: 50%;
+    background:#000; transition: width .2s, height .2s;
   }
 
-  /* fixed control box on the left, always clickable */
+  /* Overlay controls (ALWAYS clickable when visible) */
   #controls {
-    position: fixed; top: 50%; left: 10px; transform: translateY(-50%);
-    z-index: 9999; pointer-events: auto;
-    background: rgba(20,20,20,.9); border: 1px solid #333; border-radius: 10px;
-    padding: 10px; width: 220px; max-height: 90vh; overflow-y: auto; font-size: 14px;
-    box-shadow: 0 6px 24px rgba(0,0,0,.5);
+    position: absolute; inset: 0; z-index: 3;
+    display: grid; place-items: center;
   }
-  #controls h3 { margin: 0 0 8px; text-align: center; font-size: 15px; }
-  #controls .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-  #controls label { display: block; margin: 6px 0 2px; font-size: 12px; }
-  #controls input[type="color"], #controls input[type="range"] { width: 100%; }
+  .panel {
+    width: min(92vw, 340px); max-height: 80vh; overflow: auto;
+    background: rgba(20,20,20,.92); border: 1px solid #333; border-radius: 12px; padding: 12px;
+    box-shadow: 0 8px 28px rgba(0,0,0,.55);
+  }
+  .panel h3 { margin: 0 0 8px; text-align:center; font-size:16px; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  label { display:block; margin: 6px 0 2px; font-size: 12px; }
+  input[type="color"], input[type="range"] { width: 100%; }
   .swapBlock { border-top: 1px solid #444; padding-top: 8px; margin-top: 8px; }
-  button {
-    width: 100%; padding: 8px 10px; border: 0; border-radius: 8px; cursor: pointer;
-    background: #2d6cdf; color: #fff; font-weight: 600; margin-bottom: 8px;
-  }
+  .presets { display:grid; grid-template-columns: repeat(3,1fr); gap:6px; margin-top:6px; }
+  .preset { user-select:none; text-align:center; padding:8px 6px; border-radius:8px; cursor:pointer; background:#262626; border:1px solid #3a3a3a; font-size:12px; }
+  .preset.active { outline:2px solid #2d6cdf; }
+  button.btn { padding:8px 10px; border:0; border-radius:8px; cursor:pointer; background:#2d6cdf; color:#fff; font-weight:600; }
 
-  /* Preset chips */
-  .presets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 6px; }
-  .preset {
-    user-select: none; text-align: center; padding: 8px 6px; border-radius: 8px; cursor: pointer;
-    background: #262626; border: 1px solid #3a3a3a; font-size: 12px;
+  /* Floating Show/Hide toggle (always accessible) */
+  #toggleUI {
+    position: absolute; top: 10px; right: 10px; z-index: 4;
+    background: rgba(38,38,38,.95); border:1px solid #3a3a3a; color:#fff;
+    padding:8px 10px; border-radius:10px; cursor:pointer; font-size:14px;
   }
-  .preset.active { outline: 2px solid #2d6cdf; }
 </style>
 </head>
 <body>
-  <div id="controls">
-    <h3>Filters</h3>
-    <button id="startBtn">Start Camera</button>
+  <div id="stage">
+    <canvas id="output" width="300" height="300"></canvas>
 
-    <label>Circle Size</label>
-    <input type="range" id="sizeSlider" min="120" max="560" value="300">
+    <button id="toggleUI" aria-pressed="true">Hide UI</button>
 
-    <!-- Presets row -->
-    <div class="swapBlock">
-      <label style="margin-bottom:4px;">Presets</label>
-      <div class="presets">
-        <div class="preset active" data-preset="none">None</div>
-        <div class="preset" data-preset="bw">B&amp;W</div>
-        <div class="preset" data-preset="heat">Heat</div>
+    <div id="controls">
+      <div class="panel" role="region" aria-label="Filters">
+        <h3>Filters</h3>
+
+        <div class="row">
+          <button id="startBtn" class="btn" style="flex:1">Start Camera</button>
+          <button id="hideBtn"  class="btn" style="flex:1; background:#555;">Hide UI</button>
+        </div>
+
+        <label>Circle Size</label>
+        <input type="range" id="sizeSlider" min="160" max="640" value="300">
+
+        <div class="swapBlock">
+          <label style="margin-bottom:4px;">Presets</label>
+          <div class="presets">
+            <div class="preset active" data-preset="none">None</div>
+            <div class="preset" data-preset="bw">B&amp;W</div>
+            <div class="preset" data-preset="heat">Heat</div>
+          </div>
+        </div>
+
+        <!-- 4 color swaps with On/Off -->
+        <div class="swapBlock">
+          <div class="row"><strong>Swap 1</strong><label class="row" style="gap:6px;">
+            <input type="checkbox" class="swapEnabled" checked> On
+          </label></div>
+          <label>Target</label><input type="color" class="targetColor" value="#0000ff">
+          <label>Replace</label><input type="color" class="newColor" value="#ff00ff">
+        </div>
+
+        <div class="swapBlock">
+          <div class="row"><strong>Swap 2</strong><label class="row" style="gap:6px;">
+            <input type="checkbox" class="swapEnabled" checked> On
+          </label></div>
+          <label>Target</label><input type="color" class="targetColor" value="#00ff00">
+          <label>Replace</label><input type="color" class="newColor" value="#ffff00">
+        </div>
+
+        <div class="swapBlock">
+          <div class="row"><strong>Swap 3</strong><label class="row" style="gap:6px;">
+            <input type="checkbox" class="swapEnabled" checked> On
+          </label></div>
+          <label>Target</label><input type="color" class="targetColor" value="#ff0000">
+          <label>Replace</label><input type="color" class="newColor" value="#00ffff">
+        </div>
+
+        <div class="swapBlock">
+          <div class="row"><strong>Swap 4</strong><label class="row" style="gap:6px;">
+            <input type="checkbox" class="swapEnabled"> On
+          </label></div>
+          <label>Target</label><input type="color" class="targetColor" value="#ffffff">
+          <label>Replace</label><input type="color" class="newColor" value="#000000">
+        </div>
       </div>
     </div>
-
-    <!-- 4 color-swap slots with ON/OFF toggles -->
-    <div class="swapBlock">
-      <div class="row"><strong>Swap 1</strong><label class="row" style="gap:6px;">
-        <input type="checkbox" class="swapEnabled" checked> On
-      </label></div>
-      <label>Target</label><input type="color" class="targetColor" value="#0000ff">
-      <label>Replace</label><input type="color" class="newColor" value="#ff00ff">
-    </div>
-
-    <div class="swapBlock">
-      <div class="row"><strong>Swap 2</strong><label class="row" style="gap:6px;">
-        <input type="checkbox" class="swapEnabled" checked> On
-      </label></div>
-      <label>Target</label><input type="color" class="targetColor" value="#00ff00">
-      <label>Replace</label><input type="color" class="newColor" value="#ffff00">
-    </div>
-
-    <div class="swapBlock">
-      <div class="row"><strong>Swap 3</strong><label class="row" style="gap:6px;">
-        <input type="checkbox" class="swapEnabled" checked> On
-      </label></div>
-      <label>Target</label><input type="color" class="targetColor" value="#ff0000">
-      <label>Replace</label><input type="color" class="newColor" value="#00ffff">
-    </div>
-
-    <div class="swapBlock">
-      <div class="row"><strong>Swap 4</strong><label class="row" style="gap:6px;">
-        <input type="checkbox" class="swapEnabled"> On
-      </label></div>
-      <label>Target</label><input type="color" class="targetColor" value="#ffffff">
-      <label>Replace</label><input type="color" class="newColor" value="#000000">
-    </div>
-  </div>
-
-  <div id="container">
-    <canvas id="output" width="300" height="300"></canvas>
   </div>
 
 <script>
   const canvas = document.getElementById('output');
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
   const startBtn   = document.getElementById('startBtn');
   const sizeSlider = document.getElementById('sizeSlider');
+  const controls   = document.getElementById('controls');
+  const toggleUI   = document.getElementById('toggleUI');
+  const hideBtn    = document.getElementById('hideBtn');
 
-  const THRESH = 60; // 0-255 per channel tolerance
-  let mode = 'none'; // 'none' | 'bw' | 'heat'
+  const THRESH = 60;
+  let mode = 'none';
   let swaps = [];
   let videoEl = null;
 
-  // ---------- UI wiring ----------
-  function hexToRgb(hex) {
+  // helpers
+  const hexToRgb = (hex) => {
     hex = hex.replace('#', '');
     const x = parseInt(hex, 16);
-    return { r: (x >> 16) & 255, g: (x >> 8) & 255, b: x & 255 };
-  }
+    return { r:(x>>16)&255, g:(x>>8)&255, b:x&255 };
+  };
 
   function updateSwaps() {
     swaps = [];
-    const blocks = document.querySelectorAll('.swapBlock');
-    blocks.forEach(block => {
-      const enabled = block.querySelector?.('.swapEnabled')?.checked;
-      const tEl = block.querySelector?.('.targetColor');
-      const nEl = block.querySelector?.('.newColor');
-      if (!tEl || !nEl) return; // skip preset block
+    document.querySelectorAll('.swapBlock').forEach(b => {
+      const enabled = b.querySelector?.('.swapEnabled')?.checked;
+      const tEl = b.querySelector?.('.targetColor');
+      const nEl = b.querySelector?.('.newColor');
+      if (!tEl || !nEl) return;
       const t = tEl.value, n = nEl.value;
       if (enabled && t !== n) swaps.push({ target: hexToRgb(t), repl: hexToRgb(n) });
     });
   }
 
+  // UI events
   document.addEventListener('input', (e) => {
     if (e.target.matches('.targetColor, .newColor, .swapEnabled')) updateSwaps();
     if (e.target === sizeSlider) {
-      const size = sizeSlider.value + 'px';
-      canvas.style.width = size;
-      canvas.style.height = size;
+      const css = sizeSlider.value + 'px';
+      canvas.style.width = css; canvas.style.height = css;
     }
   });
 
-  // Preset selection
   document.querySelectorAll('.preset').forEach(p => {
     p.addEventListener('click', () => {
       document.querySelectorAll('.preset').forEach(x => x.classList.remove('active'));
       p.classList.add('active');
-      mode = p.dataset.preset; // none | bw | heat
+      mode = p.dataset.preset;
     });
   });
 
-  // ---------- camera + render ----------
+  // Show/Hide UI (both the floating toggle and the Hide button do the same thing)
+  function togglePanel() {
+    const hidden = controls.style.display === 'none';
+    controls.style.display = hidden ? 'grid' : 'none';
+    toggleUI.textContent = hidden ? 'Hide UI' : 'Show UI';
+    toggleUI.setAttribute('aria-pressed', hidden.toString());
+  }
+  toggleUI.addEventListener('click', togglePanel);
+  hideBtn.addEventListener('click', togglePanel);
+
+  // camera + render (simple/default)
   async function startCamera() {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' } },
-        audio: false
-      });
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
       videoEl = document.createElement('video');
       videoEl.setAttribute('playsinline', 'true');
-      videoEl.muted = true;  // iOS quirk
+      videoEl.muted = true;
       videoEl.srcObject = stream;
       await videoEl.play();
 
+      const css = sizeSlider.value + 'px';
+      canvas.style.width = css; canvas.style.height = css;
+
       updateSwaps();
-      requestAnimationFrame(loop);
       startBtn.textContent = 'Camera Running';
       startBtn.disabled = true;
+      requestAnimationFrame(loop);
     } catch (err) {
       console.error('Camera error:', err);
       alert('Camera access denied or unavailable.');
@@ -176,50 +196,28 @@
 
   function applyBW(d) {
     for (let i = 0; i < d.length; i += 4) {
-      const r = d[i], g = d[i+1], b = d[i+2];
-      const y = (r * 0.299 + g * 0.587 + b * 0.114) | 0;
-      d[i] = d[i+1] = d[i+2] = y;
+      const y = (d[i]*0.299 + d[i+1]*0.587 + d[i+2]*0.114) | 0;
+      d[i]=d[i+1]=d[i+2]=y;
     }
   }
-
   function applyHeat(d) {
-    // quick “thermal” map using luminance -> gradient (blue->purple->red->orange->yellow->white)
     for (let i = 0; i < d.length; i += 4) {
-      const r = d[i], g = d[i+1], b = d[i+2];
-      const y = (r * 0.299 + g * 0.587 + b * 0.114) | 0;
-      const t = y / 255; // 0..1
-
-      // piecewise gradient
+      const y = (d[i]*0.299 + d[i+1]*0.587 + d[i+2]*0.114) / 255;
       let R=0,G=0,B=0;
-      if (t < 0.25) {        // blue -> purple
-        R = 128 * (t/0.25);
-        G = 0;
-        B = 255;
-      } else if (t < 0.5) {  // purple -> red
-        R = 128 + 127 * ((t-0.25)/0.25);
-        G = 0;
-        B = 255 - 255 * ((t-0.25)/0.25);
-      } else if (t < 0.75) { // red -> orange/yellow
-        R = 255;
-        G = 255 * ((t-0.5)/0.25);
-        B = 0;
-      } else {               // yellow -> white
-        R = 255;
-        G = 255;
-        B = 255 * ((t-0.75)/0.25);
-      }
-      d[i] = R|0; d[i+1] = G|0; d[i+2] = B|0;
+      if (y < 0.25) { R = 128*(y/0.25); G = 0; B = 255; }
+      else if (y < 0.5) { R = 128 + 127*((y-0.25)/0.25); G = 0; B = 255 - 255*((y-0.25)/0.25); }
+      else if (y < 0.75) { R = 255; G = 255*((y-0.5)/0.25); B = 0; }
+      else { R = 255; G = 255; B = 255*((y-0.75)/0.25); }
+      d[i]=R|0; d[i+1]=G|0; d[i+2]=B|0;
     }
   }
-
   function applySwaps(d) {
     for (let i = 0; i < d.length; i += 4) {
       const r = d[i], g = d[i+1], b = d[i+2];
       for (let s = 0; s < swaps.length; s++) {
         const t = swaps[s].target, rep = swaps[s].repl;
         if (Math.abs(r - t.r) < THRESH && Math.abs(g - t.g) < THRESH && Math.abs(b - t.b) < THRESH) {
-          d[i] = rep.r; d[i+1] = rep.g; d[i+2] = rep.b;
-          break;
+          d[i]=rep.r; d[i+1]=rep.g; d[i+2]=rep.b; break;
         }
       }
     }
@@ -231,11 +229,8 @@
       const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const d = img.data;
 
-      // Apply preset first (so color swaps happen on the result)
       if (mode === 'bw') applyBW(d);
       else if (mode === 'heat') applyHeat(d);
-
-      // Then apply color swaps (if any enabled)
       if (swaps.length) applySwaps(d);
 
       ctx.putImageData(img, 0, 0);
@@ -243,14 +238,10 @@
     requestAnimationFrame(loop);
   }
 
-  // click Start (so iOS allows camera)
   startBtn.addEventListener('click', startCamera);
-
-  // init default UI state
-  (function init() {
-    const size = sizeSlider.value + 'px';
-    canvas.style.width = size;
-    canvas.style.height = size;
+  (function init(){
+    const css = sizeSlider.value + 'px';
+    canvas.style.width = css; canvas.style.height = css;
     updateSwaps();
   })();
 </script>
