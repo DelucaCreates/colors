@@ -3,53 +3,50 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Color Swap Camera (Clickable UI)</title>
+<title>Color Swap Camera — Back Cam</title>
 <style>
   :root { color-scheme: dark; }
-  body {
-    margin: 0; background: #000; color: #fff; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-    height: 100vh; overflow: hidden; display: grid; place-items: center;
+  body{
+    margin:0;background:#000;color:#fff;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    height:100vh;overflow:hidden;display:grid;place-items:center;
   }
-  #stage { position: relative; width: 100vw; height: 100vh; display: grid; place-items: center; }
+  #stage{position:relative;width:100vw;height:100vh;display:grid;place-items:center;}
 
   /* Camera circle */
-  canvas {
-    position: relative; z-index: 1;
-    width: 300px; height: 300px; border-radius: 50%;
-    background:#000; transition: width .2s, height .2s;
+  canvas{
+    position:relative;z-index:1;width:320px;height:320px;border-radius:50%;
+    background:#000;transition:width .2s,height .2s;
   }
 
-  /* Overlay controls (ALWAYS clickable when visible) */
-  #controls {
-    position: absolute; inset: 0; z-index: 3;
-    display: grid; place-items: center;
+  /* Panel (clickable) */
+  #controls{position:absolute;inset:0;z-index:3;display:grid;place-items:center;}
+  .panel{
+    width:min(92vw,340px);max-height:80vh;overflow:auto;
+    background:rgba(20,20,20,.92);border:1px solid #333;border-radius:12px;padding:12px;
+    box-shadow:0 8px 28px rgba(0,0,0,.55);
   }
-  .panel {
-    width: min(92vw, 340px); max-height: 80vh; overflow: auto;
-    background: rgba(20,20,20,.92); border: 1px solid #333; border-radius: 12px; padding: 12px;
-    box-shadow: 0 8px 28px rgba(0,0,0,.55);
-  }
-  .panel h3 { margin: 0 0 8px; text-align:center; font-size:16px; }
-  .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-  label { display:block; margin: 6px 0 2px; font-size: 12px; }
-  input[type="color"], input[type="range"] { width: 100%; }
-  .swapBlock { border-top: 1px solid #444; padding-top: 8px; margin-top: 8px; }
-  .presets { display:grid; grid-template-columns: repeat(3,1fr); gap:6px; margin-top:6px; }
-  .preset { user-select:none; text-align:center; padding:8px 6px; border-radius:8px; cursor:pointer; background:#262626; border:1px solid #3a3a3a; font-size:12px; }
-  .preset.active { outline:2px solid #2d6cdf; }
-  button.btn { padding:8px 10px; border:0; border-radius:8px; cursor:pointer; background:#2d6cdf; color:#fff; font-weight:600; }
+  .panel h3{margin:0 0 8px;text-align:center;font-size:16px;}
+  .row{display:flex;align-items:center;gap:8px}
+  .row > .btn{flex:1}
+  label{display:block;margin:6px 0 2px;font-size:12px}
+  input[type="color"],input[type="range"]{width:100%}
+  .swapBlock{border-top:1px solid #444;padding-top:8px;margin-top:8px}
+  .presets{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px}
+  .preset{user-select:none;text-align:center;padding:8px 6px;border-radius:8px;cursor:pointer;background:#262626;border:1px solid #3a3a3a;font-size:12px}
+  .preset.active{outline:2px solid #2d6cdf}
+  .btn{padding:8px 10px;border:0;border-radius:8px;cursor:pointer;background:#2d6cdf;color:#fff;font-weight:600}
 
-  /* Floating Show/Hide toggle (always accessible) */
-  #toggleUI {
-    position: absolute; top: 10px; right: 10px; z-index: 4;
-    background: rgba(38,38,38,.95); border:1px solid #3a3a3a; color:#fff;
-    padding:8px 10px; border-radius:10px; cursor:pointer; font-size:14px;
+  /* Floating toggle */
+  #toggleUI{
+    position:absolute;top:10px;right:10px;z-index:4;
+    background:rgba(38,38,38,.95);border:1px solid #3a3a3a;color:#fff;
+    padding:8px 10px;border-radius:10px;cursor:pointer;font-size:14px;
   }
 </style>
 </head>
 <body>
   <div id="stage">
-    <canvas id="output" width="300" height="300"></canvas>
+    <canvas id="output" width="320" height="320"></canvas>
 
     <button id="toggleUI" aria-pressed="true">Hide UI</button>
 
@@ -58,12 +55,12 @@
         <h3>Filters</h3>
 
         <div class="row">
-          <button id="startBtn" class="btn" style="flex:1">Start Camera</button>
-          <button id="hideBtn"  class="btn" style="flex:1; background:#555;">Hide UI</button>
+          <button id="startBtn" class="btn">Start Camera</button>
+          <button id="hideBtn"  class="btn" style="background:#555">Hide UI</button>
         </div>
 
         <label>Circle Size</label>
-        <input type="range" id="sizeSlider" min="160" max="640" value="300">
+        <input type="range" id="sizeSlider" min="160" max="640" value="320">
 
         <div class="swapBlock">
           <label style="margin-bottom:4px;">Presets</label>
@@ -76,33 +73,33 @@
 
         <!-- 4 color swaps with On/Off -->
         <div class="swapBlock">
-          <div class="row"><strong>Swap 1</strong><label class="row" style="gap:6px;">
-            <input type="checkbox" class="swapEnabled" checked> On
-          </label></div>
+          <div class="row"><strong>Swap 1</strong>
+            <label class="row" style="gap:6px;"><input type="checkbox" class="swapEnabled" checked> On</label>
+          </div>
           <label>Target</label><input type="color" class="targetColor" value="#0000ff">
           <label>Replace</label><input type="color" class="newColor" value="#ff00ff">
         </div>
 
         <div class="swapBlock">
-          <div class="row"><strong>Swap 2</strong><label class="row" style="gap:6px;">
-            <input type="checkbox" class="swapEnabled" checked> On
-          </label></div>
+          <div class="row"><strong>Swap 2</strong>
+            <label class="row" style="gap:6px;"><input type="checkbox" class="swapEnabled" checked> On</label>
+          </div>
           <label>Target</label><input type="color" class="targetColor" value="#00ff00">
           <label>Replace</label><input type="color" class="newColor" value="#ffff00">
         </div>
 
         <div class="swapBlock">
-          <div class="row"><strong>Swap 3</strong><label class="row" style="gap:6px;">
-            <input type="checkbox" class="swapEnabled" checked> On
-          </label></div>
+          <div class="row"><strong>Swap 3</strong>
+            <label class="row" style="gap:6px;"><input type="checkbox" class="swapEnabled" checked> On</label>
+          </div>
           <label>Target</label><input type="color" class="targetColor" value="#ff0000">
           <label>Replace</label><input type="color" class="newColor" value="#00ffff">
         </div>
 
         <div class="swapBlock">
-          <div class="row"><strong>Swap 4</strong><label class="row" style="gap:6px;">
-            <input type="checkbox" class="swapEnabled"> On
-          </label></div>
+          <div class="row"><strong>Swap 4</strong>
+            <label class="row" style="gap:6px;"><input type="checkbox" class="swapEnabled"> On</label>
+          </div>
           <label>Target</label><input type="color" class="targetColor" value="#ffffff">
           <label>Replace</label><input type="color" class="newColor" value="#000000">
         </div>
@@ -127,56 +124,71 @@
 
   // helpers
   const hexToRgb = (hex) => {
-    hex = hex.replace('#', '');
-    const x = parseInt(hex, 16);
+    hex = hex.replace('#',''); const x = parseInt(hex,16);
     return { r:(x>>16)&255, g:(x>>8)&255, b:x&255 };
   };
 
-  function updateSwaps() {
+  function updateSwaps(){
     swaps = [];
-    document.querySelectorAll('.swapBlock').forEach(b => {
+    document.querySelectorAll('.swapBlock').forEach(b=>{
       const enabled = b.querySelector?.('.swapEnabled')?.checked;
       const tEl = b.querySelector?.('.targetColor');
       const nEl = b.querySelector?.('.newColor');
-      if (!tEl || !nEl) return;
-      const t = tEl.value, n = nEl.value;
-      if (enabled && t !== n) swaps.push({ target: hexToRgb(t), repl: hexToRgb(n) });
+      if(!tEl || !nEl) return;
+      if(enabled && tEl.value !== nEl.value)
+        swaps.push({ target: hexToRgb(tEl.value), repl: hexToRgb(nEl.value) });
     });
   }
 
   // UI events
-  document.addEventListener('input', (e) => {
-    if (e.target.matches('.targetColor, .newColor, .swapEnabled')) updateSwaps();
-    if (e.target === sizeSlider) {
+  document.addEventListener('input', e=>{
+    if(e.target.matches('.targetColor, .newColor, .swapEnabled')) updateSwaps();
+    if(e.target === sizeSlider){
       const css = sizeSlider.value + 'px';
       canvas.style.width = css; canvas.style.height = css;
     }
   });
 
-  document.querySelectorAll('.preset').forEach(p => {
-    p.addEventListener('click', () => {
-      document.querySelectorAll('.preset').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('.preset').forEach(p=>{
+    p.addEventListener('click', ()=>{
+      document.querySelectorAll('.preset').forEach(x=>x.classList.remove('active'));
       p.classList.add('active');
-      mode = p.dataset.preset;
+      mode = p.dataset.preset; // none | bw | heat
     });
   });
 
-  // Show/Hide UI (both the floating toggle and the Hide button do the same thing)
-  function togglePanel() {
+  function togglePanel(){
     const hidden = controls.style.display === 'none';
     controls.style.display = hidden ? 'grid' : 'none';
-    toggleUI.textContent = hidden ? 'Hide UI' : 'Show UI';
+    toggleUI.textContent   = hidden ? 'Hide UI' : 'Show UI';
     toggleUI.setAttribute('aria-pressed', hidden.toString());
   }
   toggleUI.addEventListener('click', togglePanel);
   hideBtn.addEventListener('click', togglePanel);
 
-  // camera + render (simple/default)
-  async function startCamera() {
+  // ----- CAMERA (prefer back camera) -----
+  async function getBackCameraStream(){
+    // Try strict 'environment' first
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      return await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { exact: 'environment' } }, audio: false
+      });
+    } catch(_) {}
+    // Fallback to ideal
+    try {
+      return await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } }, audio: false
+      });
+    } catch(_) {}
+    // Final fallback: default camera
+    return await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+  }
+
+  async function startCamera(){
+    try{
+      const stream = await getBackCameraStream();
       videoEl = document.createElement('video');
-      videoEl.setAttribute('playsinline', 'true');
+      videoEl.setAttribute('playsinline','true'); // iOS
       videoEl.muted = true;
       videoEl.srcObject = stream;
       await videoEl.play();
@@ -188,50 +200,52 @@
       startBtn.textContent = 'Camera Running';
       startBtn.disabled = true;
       requestAnimationFrame(loop);
-    } catch (err) {
+    }catch(err){
       console.error('Camera error:', err);
       alert('Camera access denied or unavailable.');
     }
   }
 
-  function applyBW(d) {
-    for (let i = 0; i < d.length; i += 4) {
-      const y = (d[i]*0.299 + d[i+1]*0.587 + d[i+2]*0.114) | 0;
+  // filters
+  function applyBW(d){
+    for(let i=0;i<d.length;i+=4){
+      const y=(d[i]*0.299+d[i+1]*0.587+d[i+2]*0.114)|0;
       d[i]=d[i+1]=d[i+2]=y;
     }
   }
-  function applyHeat(d) {
-    for (let i = 0; i < d.length; i += 4) {
-      const y = (d[i]*0.299 + d[i+1]*0.587 + d[i+2]*0.114) / 255;
+  function applyHeat(d){
+    for(let i=0;i<d.length;i+=4){
+      const y=(d[i]*0.299+d[i+1]*0.587+d[i+2]*0.114)/255;
       let R=0,G=0,B=0;
-      if (y < 0.25) { R = 128*(y/0.25); G = 0; B = 255; }
-      else if (y < 0.5) { R = 128 + 127*((y-0.25)/0.25); G = 0; B = 255 - 255*((y-0.25)/0.25); }
-      else if (y < 0.75) { R = 255; G = 255*((y-0.5)/0.25); B = 0; }
-      else { R = 255; G = 255; B = 255*((y-0.75)/0.25); }
+      if(y<0.25){ R=128*(y/0.25); G=0; B=255; }
+      else if(y<0.5){ R=128+127*((y-0.25)/0.25); G=0; B=255-255*((y-0.25)/0.25); }
+      else if(y<0.75){ R=255; G=255*((y-0.5)/0.25); B=0; }
+      else{ R=255; G=255; B=255*((y-0.75)/0.25); }
       d[i]=R|0; d[i+1]=G|0; d[i+2]=B|0;
     }
   }
-  function applySwaps(d) {
-    for (let i = 0; i < d.length; i += 4) {
-      const r = d[i], g = d[i+1], b = d[i+2];
-      for (let s = 0; s < swaps.length; s++) {
-        const t = swaps[s].target, rep = swaps[s].repl;
-        if (Math.abs(r - t.r) < THRESH && Math.abs(g - t.g) < THRESH && Math.abs(b - t.b) < THRESH) {
+  function applySwaps(d){
+    for(let i=0;i<d.length;i+=4){
+      const r=d[i], g=d[i+1], b=d[i+2];
+      for(let s=0;s<swaps.length;s++){
+        const t=swaps[s].target, rep=swaps[s].repl;
+        if(Math.abs(r-t.r)<THRESH && Math.abs(g-t.g)<THRESH && Math.abs(b-t.b)<THRESH){
           d[i]=rep.r; d[i+1]=rep.g; d[i+2]=rep.b; break;
         }
       }
     }
   }
 
-  function loop() {
-    if (videoEl && !videoEl.paused) {
+  function loop(){
+    if(videoEl && !videoEl.paused){
+      // draw video scaled into 320x320 canvas
       ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
       const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const d = img.data;
 
-      if (mode === 'bw') applyBW(d);
-      else if (mode === 'heat') applyHeat(d);
-      if (swaps.length) applySwaps(d);
+      if(mode==='bw')   applyBW(d);
+      else if(mode==='heat') applyHeat(d);
+      if(swaps.length)  applySwaps(d);
 
       ctx.putImageData(img, 0, 0);
     }
